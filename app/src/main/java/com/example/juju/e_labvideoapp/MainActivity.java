@@ -66,11 +66,11 @@ public class MainActivity extends Activity implements SensorEventListener {
     private TextView txt;
 
     int quality = 0;
-    int rate = 100;
+    int rate = 50;
     String timeStampFile;
     int clickFlag = 0;
     Timer timer;
-    int VideoFrameRate = 24;
+    int VideoFrameRate = 30;
 
     // angular speeds from gyro
     private float[] gyro_mat = new float[3];
@@ -258,7 +258,6 @@ public class MainActivity extends Activity implements SensorEventListener {
                 chrono.start();
                 chrono.stop();
                 txt.setTextColor(-16711936);
-                //chrono.setBackgroundColor(0);
                 enddata();
 /*
                 if(clickFlag == 1){
@@ -268,10 +267,10 @@ public class MainActivity extends Activity implements SensorEventListener {
 */
             } else {
                 timeStampFile = String.valueOf((new Date()).getTime());
-                File wallpaperDirectory = new File(Environment.getExternalStorageDirectory().getPath()+"/elab/");
+                File wallpaperDirectory = new File(Environment.getExternalStorageDirectory().getPath()+"/hmi/");
                 wallpaperDirectory.mkdirs();
 
-                File wallpaperDirectory1 = new File(Environment.getExternalStorageDirectory().getPath()+"/elab/"+timeStampFile);
+                File wallpaperDirectory1 = new File(Environment.getExternalStorageDirectory().getPath()+"/hmi/"+timeStampFile);
                 wallpaperDirectory1.mkdirs();
                 if (!prepareMediaRecorder()) {
                     Toast.makeText(MainActivity.this, "Fail in prepareMediaRecorder()!\n - Ended -", Toast.LENGTH_LONG).show();
@@ -296,14 +295,12 @@ public class MainActivity extends Activity implements SensorEventListener {
 
                 params.setFocusMode(Camera.Parameters.FOCUS_MODE_CONTINUOUS_PICTURE);
                 mCamera.setParameters(params);
-                //d.beginData();
                 storeData();
                 chrono.setBase(SystemClock.elapsedRealtime());
 
                 String timeStamp = String.valueOf((new Date()).getTime());
-                writer.println("Start timestamp = " + "," + timeStamp);
+                writer.println("Start timestamp" + "," + timeStamp);
                 chrono.start();
-                //chrono.setBackgroundColor(-65536);
                 txt.setTextColor(-65536);
                 recording = true;
 
@@ -338,7 +335,7 @@ public class MainActivity extends Activity implements SensorEventListener {
 
         //String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
 
-        mediaRecorder.setOutputFile(Environment.getExternalStorageDirectory().getPath()+"/elab/" + timeStampFile + "/" + timeStampFile  + ".mp4");
+        mediaRecorder.setOutputFile(Environment.getExternalStorageDirectory().getPath()+"/hmi/" + timeStampFile + "/" + timeStampFile  + ".mp4");
         mediaRecorder.setVideoFrameRate(VideoFrameRate);
         //mediaRecorder.setMaxDuration(5000);
 
@@ -372,7 +369,6 @@ public class MainActivity extends Activity implements SensorEventListener {
 
     double latitude_original = 0;
     double longitude_original = 0;
-    //float distance = 0;
     float speed = 0;
     float dist[] = {0,0,0};
     PrintWriter writer = null;
@@ -403,13 +399,12 @@ public class MainActivity extends Activity implements SensorEventListener {
 
     public void storeData() {
 
-        String filePath = Environment.getExternalStorageDirectory().getPath()+"/elab/" + timeStampFile + "/" + timeStampFile  +  ".csv";
+        String filePath = Environment.getExternalStorageDirectory().getPath()+"/hmi/" + timeStampFile + "/" + timeStampFile  +  ".csv";
         try {
             writer = new PrintWriter(filePath);
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         }
-
        // writer.println("Time" + "," + "Acc X" + "," + "Acc Y" + "," + "Acc Z" + "," + "gyro_x" + "," + "gyro_y" + "," + "gyro_z");
        // writer.println("Timestamp" + "," + "RotationV X" + "," + "RotationV Y" + "," + "RotationV Z" + "," + "RotationV W" + "," + "RotationV Acc");
         LocationManager original = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
@@ -689,7 +684,7 @@ public class MainActivity extends Activity implements SensorEventListener {
     {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         String setting = new String();
-        if(rate == 100) {
+        if(rate == 50) {
             setting = "10 Hz";
         }
         else if(rate == 67){
@@ -704,7 +699,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                             rate = 67 ;
                         }
                         else if (which == 1){
-                            rate = 100;
+                            rate = 50;
                         }
                     }
                 });

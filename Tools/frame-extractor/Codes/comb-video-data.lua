@@ -13,7 +13,7 @@ video_decoder = require('libvideo_decoder')
 
 -- Parse args -----------------------------------
 op = xlua.OptionParser('%prog [options]')
-op:option{'-vd',        '--video_data',        action='store',        dest='vd',            help='Video & data folder to process',            default='../elab/'}
+op:option{'-vd',        '--video_data',        action='store',        dest='vd',            help='Video & data folder to process',            default='../hmi/'}
 op:option{'-l',         '--loc',               action='store',        dest='location',      help='Destination folder',                        default='../'}
 opt, args = op:parse()
 
