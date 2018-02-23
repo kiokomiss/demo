@@ -71,6 +71,7 @@ public class MainActivity extends Activity implements SensorEventListener {
     int clickFlag = 0;
     Timer timer;
     int VideoFrameRate = 30;
+    int ShootingMode = 0;
 
     // angular speeds from gyro
     private float[] gyro_mat = new float[3];
@@ -489,6 +490,7 @@ public class MainActivity extends Activity implements SensorEventListener {
     String[] options = {"1080p","720p","480p"};
     String[] options1 = {"15 Hz","10 Hz"};
     String[] options2 = {"10 fps","20 fps","30 fps"};
+    String[] options3 = {"Video","Burst","Panorama"};
 
     public void calculateAccMagOrientation() {
         if(SensorManager.getRotationMatrix(rotationMatrix, null, accel_mat, magnet)) {
@@ -731,6 +733,38 @@ public class MainActivity extends Activity implements SensorEventListener {
                         }
                         else if (which == 2){
                             VideoFrameRate = 30;
+                        }
+                    }
+                });
+        builder.show();
+    }
+
+    public void changeMode(View view)
+    {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        String setting = new String();
+        if(ShootingMode == 0) {
+            setting = "Video";
+        }
+        else if(ShootingMode == 1){
+            setting = "Burst";
+        }
+        else if(ShootingMode == 2){
+            setting = "Panorama";
+        }
+        builder.setTitle("Choode shooting mode, Current setting: " + setting)
+                .setItems(options3, new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int which) {
+                        // The 'which' argument contains the index position
+                        // of the selected item
+                        if(which == 0){
+                            ShootingMode = 0 ;
+                        }
+                        else if (which == 1){
+                            ShootingMode = 1;
+                        }
+                        else if (which == 2){
+                            ShootingMode = 2;
                         }
                     }
                 });

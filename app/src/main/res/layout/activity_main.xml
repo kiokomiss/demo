@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?><RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:orientation="vertical"
     android:layout_width="fill_parent"
     android:layout_height="fill_parent"
@@ -26,7 +27,7 @@
         android:background="@null"
         android:onClick="addQuality"
         android:src="@android:drawable/ic_menu_edit"
-        android:text="Change quality" />
+        android:text="Change quality" android:contentDescription="TODO" />
 
     <ImageButton
         android:id="@+id/button_capture"
@@ -37,7 +38,7 @@
         android:padding="20dp"
         android:src="@android:drawable/ic_menu_camera"
         android:background="@null"
-        android:text="Capture" />
+        android:text="Capture" android:contentDescription="TODO" />
 
     <ImageButton
         android:id="@+id/button_tag"
@@ -81,6 +82,17 @@
         android:text="."
         android:id="@+id/txt1"
         android:textSize="70dp" />
+
+    <ImageButton
+        android:id="@+id/change_mode"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerHorizontal="true"
+        android:layout_alignParentTop="true"
+        android:background="@null"
+        android:onClick="changeMode"
+        android:src="@android:drawable/presence_video_online"
+        android:layout_gravity="right|top"/>
 
 
 </RelativeLayout>
