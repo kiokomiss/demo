@@ -5,8 +5,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Date;
 
 import android.app.Activity;
@@ -15,6 +13,8 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.pm.PackageManager;
 import android.hardware.Camera;
+import android.hardware.Camera.PictureCallback;
+import android.hardware.Camera.ShutterCallback;
 import android.hardware.Camera.CameraInfo;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
@@ -25,75 +25,117 @@ import android.media.MediaRecorder;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.SystemClock;
-import android.telephony.TelephonyManager;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.WindowManager;
-import android.widget.Button;
 import android.widget.Chronometer;
 import android.widget.FrameLayout;
 import android.widget.ImageButton;
-import android.widget.LinearLayout;
+import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import android.text.InputType;
-import android.view.inputmethod.EditorInfo;
-import android.view.*; //?
-import android.content.Context;
 import android.location.Location;
 import android.location.LocationManager;
 import android.location.LocationListener;
 
-import android.location.GpsStatus.Listener;
-import android.os.Bundle;
-import android.view.WindowManager;
-import android.view.inputmethod.InputMethodManager;
-import android.widget.EditText;
-import java.util.Locale;
 import java.util.Timer;
 import java.util.TimerTask;
+import android.util.Log;
+
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
 
 public class MainActivity extends Activity implements SensorEventListener {
-    private Camera mCamera;
+    private static final String TAG = "DemoCamera";
+    Camera mCamera;
     private CameraPreview mPreview;
     private MediaRecorder mediaRecorder;
     private ImageButton capture, vid;
     private Context myContext;
     private FrameLayout cameraPreview;
     private Chronometer chrono;
-    private TextView tv;
     private TextView txt;
+
+    //private Button buttonClick;
+
+    int stillCount = 0;
+
+    ShutterCallback shutterCallback = new ShutterCallback() {
+        public void onShutter() {
+            Log.d("DemoCamera", "onShutter'd");
+        }
+    };
+
+    PictureCallback rawCallback = new PictureCallback() {
+        public void onPictureTaken(byte[] data, Camera mCamera) {
+            Log.d("DemoCamera", "onPictureTaken - raw with data = " + (data != null?Integer.valueOf(data.length):" NULL"));
+        }
+    };
+    PictureCallback jpegCallback = new PictureCallback() {
+        public void onPictureTaken(byte[] data, Camera mCamera) {
+            FileOutputStream outStream = null;
+            Log.d(TAG, "jpegCallback");
+            try {
+                Log.d("DemoCamera", "Start jpeg outstream wtite ");
+                File wallpaperDirectory = new File(Environment.getExternalStorageDirectory().getPath()+"/hmi/");
+                wallpaperDirectory.mkdirs();
+
+                File wallpaperDirectory1 = new File(Environment.getExternalStorageDirectory().getPath()+"/hmi/"+timeStampFileJ);
+                wallpaperDirectory1.mkdirs();
+
+                outStream = new FileOutputStream(String.format(Environment.getExternalStorageDirectory().getPath()+"/hmi/"+timeStampFileJ +"/still_%d.jpg", new Object[]{Long.valueOf(System.currentTimeMillis())}));
+                outStream.write(data);
+                outStream.close();
+                Log.d("DemoCamera", "onPictureTaken - wrote bytes: " + data.length);
+            } catch (FileNotFoundException var6) {
+                var6.printStackTrace();
+            } catch (IOException var7) {
+                var7.printStackTrace();
+            }
+
+            Log.d("DemoCamera", "onPictureTaken - jpeg");
+
+            try {
+                Log.d("DemoCamera", "Start burst jpeg ");
+                ++MainActivity.this.stillCount;
+                mCamera.startPreview();
+                if (MainActivity.this.stillCount < 10) {
+                    MainActivity.this.mPreview.camera.takePicture(MainActivity.this.shutterCallback, MainActivity.this.rawCallback, null, MainActivity.this.jpegCallback);
+                } else {
+                    MainActivity.this.stillCount = 0;
+                    MainActivity.this.capture.setEnabled(true);
+                }
+            } catch (Exception var5) {
+                Log.d("DemoCamera", "Error starting preview: " + var5.toString());
+            }
+        }
+    };
 
     int quality = 0;
     int rate = 50;
     String timeStampFile;
+    String timeStampFileJ;
     int clickFlag = 0;
     Timer timer;
     int VideoFrameRate = 30;
-    int ShootingMode = 0;
+    int ShootingMode = 1;
 
     // angular speeds from gyro
     private float[] gyro_mat = new float[3];
-
     // rotation matrix from gyro data
     private float[] gyroMatrix = new float[9];
-
     // orientation angles from gyro matrix
     private float[] gyroOrientation = new float[3];
-
     // magnetic field vector
     private float[] magnet = new float[3];
-
     // accelerometer vector
     private float[] accel_mat = new float[3];
-
     // orientation angles from accel and magnet
     private float[] accMagOrientation = new float[3];
-
     // final orientation angles from sensor fusion
     private float[] fusedOrientation = new float[3];
-
     // accelerometer and magnetometer based rotation matrix
     private float[] rotationMatrix = new float[9];
 
@@ -105,6 +147,7 @@ public class MainActivity extends Activity implements SensorEventListener {
     LocationManager LM;
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        Log.e(TAG, "onCreate");
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
@@ -125,34 +168,42 @@ public class MainActivity extends Activity implements SensorEventListener {
         gyroMatrix[7] = 0.0f;
         gyroMatrix[8] = 1.0f;
 
-        sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
-        accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION);
-        accel = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
-        //head = sensorManager.getDefaultSensor(Sensor.TYPE_ORIENTATION);
-        gyro = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
-        magn = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
-        rotv = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR);
-
         fuseTimer.scheduleAtFixedRate(new calculateFusedOrientationTask(), 1000, TIME_CONSTANT);
 
+        Log.d("DemoCamera", "cameraPreview");
         cameraPreview = (FrameLayout) findViewById(R.id.camera_preview);
 
-        mPreview = new CameraPreview(myContext, mCamera);
+        Log.d("DemoCamera", "mPreview");
+        this.mPreview = new CameraPreview(this);
         cameraPreview.addView(mPreview);
 
+        Log.d("DemoCamera", "capture");
         capture = (ImageButton) findViewById(R.id.button_capture);
         capture.setOnClickListener(captureListener);
 
-        chrono = (Chronometer) findViewById(R.id.chronometer);
-        txt = (TextView) findViewById(R.id.txt1);
-        txt.setTextColor(-16711936);
+        sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+        accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION);
+        accel = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+        gyro = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
+        magn = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
+        rotv = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR);
+        storeData();
+        String timeStamp = String.valueOf((new Date()).getTime());
+        writer.println("Start timestamp" + "," + timeStamp);
 
-        vid = (ImageButton) findViewById(R.id.imageButton);
-        vid.setVisibility(View.GONE);
+        if (ShootingMode == 0) {
+            chrono = (Chronometer) findViewById(R.id.chronometer);
+            txt = (TextView) findViewById(R.id.txt1);
+            txt.setTextColor(-16711936);
+        }
+            vid = (ImageButton) findViewById(R.id.imageButton);
+            vid.setVisibility(View.GONE);
 
+        String timeStampEnd = String.valueOf((new Date()).getTime());
+        writer.println("End timestamp" + "," + timeStampEnd);
+        enddata();
 
     }
-
 
     private int findBackFacingCamera() {
         int cameraId = -1;
@@ -171,20 +222,16 @@ public class MainActivity extends Activity implements SensorEventListener {
         return cameraId;
     }
 
-    public void onResume() {
+  /*  public void onResume() {
         super.onResume();
         if (!checkCameraHardware(myContext)) {
             Toast toast = Toast.makeText(myContext, "Phone doesn't have a camera!", Toast.LENGTH_LONG);
             toast.show();
             finish();
         }
-        if (mCamera == null) {
-            mCamera = Camera.open(findBackFacingCamera());
-            mPreview.refreshCamera(mCamera);
-        }
+        Log.d("DemoCamera", "onResume");
         sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_FASTEST);
         sensorManager.registerListener(this, accel, SensorManager.SENSOR_DELAY_FASTEST);
-        //sensorManager.registerListener(this, head, SensorManager.SENSOR_DELAY_GAME);
         sensorManager.registerListener(this, gyro, SensorManager.SENSOR_DELAY_FASTEST);
         sensorManager.registerListener(this, magn, SensorManager.SENSOR_DELAY_FASTEST);
         sensorManager.registerListener(this, rotv, SensorManager.SENSOR_DELAY_FASTEST);
@@ -215,7 +262,7 @@ public class MainActivity extends Activity implements SensorEventListener {
         // Register the listener with the Location Manager to receive location updates
         LM.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, locationListener);
     }
-
+*/
     @Override
     protected void onPause() {
         super.onPause();
@@ -236,75 +283,84 @@ public class MainActivity extends Activity implements SensorEventListener {
         }
     }
 
-
     boolean recording = false;
+
     OnClickListener captureListener = new OnClickListener() {
         @Override
         public void onClick(View v) {
-
-            if (recording) {
-                String timeStamp2 = String.valueOf((new Date()).getTime());
-                writer.println("End timestamp" +"," +  timeStamp2);
-                // stop recording and release camera
-                mediaRecorder.stop(); // stop the recording
-                String timeStamp3 = String.valueOf((new Date()).getTime());
-                writer.println("End final timestamp" + "," +  timeStamp3);
-                releaseMediaRecorder(); // release the MediaRecorder object
-                Toast.makeText(MainActivity.this, "Video captured!", Toast.LENGTH_LONG).show();
-                recording = false;
-                //d.exportData();
-                chrono.stop();
-                chrono.setBase(SystemClock.elapsedRealtime());
-
-                chrono.start();
-                chrono.stop();
-                txt.setTextColor(-16711936);
-                enddata();
-/*
-                if(clickFlag == 1){
-                    clickFlag = 0;
-                    capture.performClick();
-                }
-*/
-            } else {
-                timeStampFile = String.valueOf((new Date()).getTime());
-                File wallpaperDirectory = new File(Environment.getExternalStorageDirectory().getPath()+"/hmi/");
-                wallpaperDirectory.mkdirs();
-
-                File wallpaperDirectory1 = new File(Environment.getExternalStorageDirectory().getPath()+"/hmi/"+timeStampFile);
-                wallpaperDirectory1.mkdirs();
-                if (!prepareMediaRecorder()) {
-                    Toast.makeText(MainActivity.this, "Fail in prepareMediaRecorder()!\n - Ended -", Toast.LENGTH_LONG).show();
-                    finish();
-                }
-
-                // work on UiThread for better performance
-                runOnUiThread(new Runnable() {
-                    public void run() {
-                        try {
-                            mediaRecorder.start();
-                        } catch (final Exception ex) {
-                        }
-                    }
-                });
-                Toast.makeText(MainActivity.this, "Recording...", Toast.LENGTH_LONG).show();
-
-                Camera.Parameters params = mCamera.getParameters();
-                params.setPreviewFpsRange( 30000, 30000 ); // 30 fps
-                if ( params.isAutoExposureLockSupported() )
-                    params.setAutoExposureLock( true );
-
-                params.setFocusMode(Camera.Parameters.FOCUS_MODE_CONTINUOUS_PICTURE);
-                mCamera.setParameters(params);
+            Log.d(TAG, "OnClick");
+            if (ShootingMode == 1)
+            {
+                Log.d(TAG, "OnClick ShootingMode 1");
+                timeStampFileJ = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
                 storeData();
-                chrono.setBase(SystemClock.elapsedRealtime());
-
                 String timeStamp = String.valueOf((new Date()).getTime());
                 writer.println("Start timestamp" + "," + timeStamp);
-                chrono.start();
-                txt.setTextColor(-65536);
-                recording = true;
 
+                MainActivity.this.mPreview.camera.takePicture(MainActivity.this.shutterCallback, MainActivity.this.rawCallback, MainActivity.this.jpegCallback);
+                MainActivity.this.capture.setEnabled(false);
+                String timeStampEnd = String.valueOf((new Date()).getTime());
+                writer.println("End timestamp" + "," + timeStamp);
+                enddata();
+            }
+            else {
+                if (recording) {
+                    String timeStamp2 = String.valueOf((new Date()).getTime());
+                    writer.println("End timestamp" + "," + timeStamp2);
+                    // stop recording and release camera
+                    mediaRecorder.stop(); // stop the recording
+                    String timeStamp3 = String.valueOf((new Date()).getTime());
+                    writer.println("End final timestamp" + "," + timeStamp3);
+                    releaseMediaRecorder(); // release the MediaRecorder object
+                    Toast.makeText(MainActivity.this, "Video captured!", Toast.LENGTH_LONG).show();
+                    recording = false;
+                    chrono.stop();
+                    chrono.setBase(SystemClock.elapsedRealtime());
+
+                    chrono.start();
+                    chrono.stop();
+                    txt.setTextColor(-16711936);
+                    enddata();
+                } else {
+                    timeStampFile = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+                    File wallpaperDirectory = new File(Environment.getExternalStorageDirectory().getPath() + "/hmi/");
+                    wallpaperDirectory.mkdirs();
+
+                    File wallpaperDirectory1 = new File(Environment.getExternalStorageDirectory().getPath() + "/hmi/" + timeStampFile);
+                    wallpaperDirectory1.mkdirs();
+                    if (!prepareMediaRecorder()) {
+                        Toast.makeText(MainActivity.this, "Fail in prepareMediaRecorder()!\n - Ended -", Toast.LENGTH_LONG).show();
+                        finish();
+                    }
+
+                    // work on UiThread for better performance
+                    runOnUiThread(new Runnable() {
+                        public void run() {
+                            try {
+                                mediaRecorder.start();
+                            } catch (final Exception ex) {
+                            }
+                        }
+                    });
+                    Toast.makeText(MainActivity.this, "Recording...", Toast.LENGTH_LONG).show();
+
+                    Camera.Parameters params = mCamera.getParameters();
+                    params.setPreviewFpsRange(30000, 30000); // 30 fps
+                    if (params.isAutoExposureLockSupported())
+                        params.setAutoExposureLock(true);
+
+                    params.setFocusMode(Camera.Parameters.FOCUS_MODE_CONTINUOUS_PICTURE);
+                    mCamera.setParameters(params);
+                    storeData();
+                    chrono.setBase(SystemClock.elapsedRealtime());
+
+                    String timeStamp = String.valueOf((new Date()).getTime());
+                    writer.println("Start timestamp" + "," + timeStamp);
+                    chrono.start();
+                    txt.setTextColor(-65536);
+                    recording = true;
+
+                }
             }
         }
     };
@@ -333,8 +389,6 @@ public class MainActivity extends Activity implements SensorEventListener {
             mediaRecorder.setProfile(CamcorderProfile.get(CamcorderProfile.QUALITY_720P));
         else if(quality == 2)
             mediaRecorder.setProfile(CamcorderProfile.get(CamcorderProfile.QUALITY_480P));
-
-        //String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
 
         mediaRecorder.setOutputFile(Environment.getExternalStorageDirectory().getPath()+"/hmi/" + timeStampFile + "/" + timeStampFile  + ".mp4");
         mediaRecorder.setVideoFrameRate(VideoFrameRate);
@@ -397,10 +451,18 @@ public class MainActivity extends Activity implements SensorEventListener {
                     gyroMatrix[6] + "," + gyroMatrix[7] + "," + gyroMatrix[8]);
         }
     }
+    String timeStampSensor;
 
     public void storeData() {
 
-        String filePath = Environment.getExternalStorageDirectory().getPath()+"/hmi/" + timeStampFile + "/" + timeStampFile  +  ".csv";
+        timeStampSensor = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+        Log.d("DemoCamera", "Start store data ");
+        File wallpaperDirectory = new File(Environment.getExternalStorageDirectory().getPath()+"/hmi/");
+        wallpaperDirectory.mkdirs();
+
+        File wallpaperDirectory1 = new File(Environment.getExternalStorageDirectory().getPath()+"/hmi/"+timeStampSensor);
+        wallpaperDirectory1.mkdirs();
+        String filePath = Environment.getExternalStorageDirectory().getPath()+"/hmi/" + timeStampSensor + "/" + timeStampSensor  +  ".csv";
         try {
             writer = new PrintWriter(filePath);
         } catch (FileNotFoundException e) {
@@ -430,7 +492,6 @@ public class MainActivity extends Activity implements SensorEventListener {
 
     private Sensor accelerometer;
     private Sensor accel;
-    private Sensor head;
     private Sensor gyro;
     private Sensor magn;
     private Sensor rotv;
